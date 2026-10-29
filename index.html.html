@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>每小時身價展示報告</title>
+<style>
+:root{--bg:#ECEFF2;--surface:#FFFFFF;--ink:#1B2430;--mute:#5B6877;--line:#D3D9E0;--accent:#0E7C7B;--warn:#B4442B;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181F;--surface:#1A222B;--ink:#E6EBF0;--mute:#93A0AE;--line:#2C3743;--accent:#4FD1C5;--warn:#F08A6C;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12181F;--surface:#1A222B;--ink:#E6EBF0;--mute:#93A0AE;--line:#2C3743;--accent:#4FD1C5;--warn:#F08A6C;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.65;font-size:16px}
+main{max-width:720px;margin:0 auto;padding:28px 18px 64px}
+h1{font-size:1.5rem;margin:0 0 4px;font-weight:700;letter-spacing:.02em}
+.sub{color:var(--mute);margin:0 0 24px;font-size:.95rem}
+section{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:16px}
+h2{font-size:1.05rem;margin:0 0 12px;font-weight:700}
+.ticker{text-align:center;padding:28px 16px}
+.big{font-size:clamp(2.4rem,11vw,4rem);font-weight:300;font-variant-numeric:tabular-nums;letter-spacing:-.01em;color:var(--accent);line-height:1.1}
+.big small{font-size:.35em;color:var(--mute);margin-right:6px;font-weight:400}
+.rates{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;color:var(--mute);font-size:.9rem;margin-top:10px;font-variant-numeric:tabular-nums}
+.rates b{color:var(--ink);font-weight:600}
+.prog{height:6px;background:var(--line);border-radius:3px;margin:18px auto 0;max-width:420px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--accent)}
+.state{margin-top:8px;font-size:.85rem;color:var(--mute)}
+.row{padding:12px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.rt{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.rn{font-weight:600}
+.rv{color:var(--mute);font-size:.88rem;font-variant-numeric:tabular-nums}
+.rh{font-variant-numeric:tabular-nums;font-size:.95rem}
+.rh b{color:var(--accent);font-size:1.1rem}
+.bar{height:4px;background:var(--line);border-radius:2px;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:2px;opacity:.7}
+.total{border-top:2px solid var(--ink);margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.grid{grid-template-columns:1fr}}
+label{display:block;font-size:.85rem;color:var(--mute);margin-bottom:3px}
+input,select,button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-height:42px}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.item{display:grid;grid-template-columns:1fr 110px 44px;gap:8px;margin-bottom:8px}
+button{cursor:pointer;width:auto}
+button.add{margin-top:4px;color:var(--accent);border-color:var(--accent);background:transparent}
+button.del{padding:0;width:44px;color:var(--mute)}
+summary{cursor:pointer;font-weight:700;font-size:1.05rem;padding:2px 0}
+.res{margin-top:14px;padding:14px;border-radius:8px;background:var(--bg);font-variant-numeric:tabular-nums}
+.res b{color:var(--warn);font-size:1.5rem}
+.note{color:var(--mute);font-size:.82rem;margin-top:10px}
+.month{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}.month b{font-size:1.6rem;font-weight:600}
+.good{grid-template-columns:1fr 64px 90px 44px}
+@media (prefers-reduced-motion:no-preference){.prog i{transition:width .5s linear}}
+</style>
+</head>
+<body>
+<main>
+<h1>每小時身價展示報告</h1>
+<p class="sub">看看你的證照、風險和年資，每小時可以為你換來多少吧。資料只存在這個瀏覽器裡，不會有人知道你有多心酸。</p>
+
+<section class="ticker" aria-live="off">
+  <div class="big"><small>今天已累積</small>NT$ <span id="today">0.00</span></div>
+  <div class="rates">
+    <span>每小時 <b id="rh">0</b></span>
+    <span>每分鐘 <b id="rm">0</b></span>
+    <span>每秒 <b id="rs">0</b></span>
+  </div>
+  <div class="prog"><i id="pg"></i></div>
+  <div class="state" id="state"></div>
+  <div class="state" id="pctline"></div>
+  <div class="month" id="monthline"></div>
+</section>
+
+<section>
+  <h2>每一項值多少</h2>
+  <div id="rows"></div>
+</section>
+
+<section>
+  <h2>換算成…</h2>
+  <div id="goods-out"></div>
+</section>
+
+<section>
+  <h2>請假的代價</h2>
+  <div class="grid">
+    <div><label for="lt">假別</label>
+      <select id="lt">
+        <option value="1">事假（不給薪）</option>
+        <option value="0.5">普通傷病假（半薪）</option>
+        <option value="0">特休（照給）</option>
+        <option value="c">自訂扣薪比例</option>
+      </select></div>
+    <div><label for="lh">請假時數</label><input id="lh" type="number" min="0" step="0.5" value="4" inputmode="decimal"></div>
+  </div>
+  <div id="cw" class="grid" style="margin-top:12px;display:none"><div><label for="lc">扣薪比例（%）</label><input id="lc" type="number" min="0" max="100" value="100" inputmode="decimal"></div></div>
+  <div class="res" id="leave"></div>
+  <p class="note">實際扣法依你的職場規定與勞動法令而定，這裡只是照時薪比例試算。</p>
+</section>
+
+<section>
+  <details open>
+    <summary>薪資設定</summary>
+    <div style="margin-top:14px">
+      <div class="grid">
+        <div><label for="base">每月底薪（NT$）</label><input id="base" type="number" min="0" inputmode="numeric"></div>
+        <div></div>
+      </div>
+      <p style="margin:16px 0 6px;font-size:.9rem;font-weight:600">每月加給項目</p>
+      <div id="items"></div>
+      <button class="add" id="addItem" type="button">新增加給項目</button>
+      <p style="margin:20px 0 6px;font-size:.9rem;font-weight:600">換算用的物品（名稱、單位、價格）</p>
+      <p class="note" style="margin-top:0">價格是示範值，請改成你實際看到的價格。</p>
+      <div id="goods"></div>
+      <button class="add" id="addGood" type="button">新增物品</button>
+      <p style="margin:20px 0 6px;font-size:.9rem;font-weight:600">換算方式與上下班時間</p>
+      <div class="grid">
+        <div><label for="days">月薪除以幾天得日薪</label><input id="days" type="number" min="1" inputmode="numeric"></div>
+        <div><label for="hrs">日薪除以幾小時得時薪</label><input id="hrs" type="number" min="1" step="0.5" inputmode="decimal"></div>
+        <div><label for="st">上班</label><input id="st" type="time"></div>
+        <div><label for="en">下班</label><input id="en" type="time"></div>
+        <div><label for="ls">午休開始</label><input id="ls" type="time"></div>
+        <div><label for="le">午休結束</label><input id="le" type="time"></div>
+      </div>
+      <p class="note">預設用月薪除以 30、再除以 8 的算法。以上數字是示範值，請改成你自己的。</p>
+    </div>
+  </details>
+</section>
+</main>
+
+<script>
+(function(){
+var KEY="wage-breakdown-v1";
+var DEF={goods:[{n:"阿帝仙香水",u:"瓶",p:4500},{n:"提拉米蘇蛋糕",u:"塊",p:150},{n:"超商茶葉蛋",u:"顆",p:13}],base:35000,items:[{n:"證照加給",v:3000},{n:"風險加給",v:1000},{n:"年資加給",v:1000}],days:30,hrs:8,st:"09:00",en:"18:00",ls:"12:00",le:"13:00"};
+var S;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
+if(!S||typeof S.base!=="number"||!Array.isArray(S.items)){S=JSON.parse(JSON.stringify(DEF))}
+if(!Array.isArray(S.goods)){S.goods=JSON.parse(JSON.stringify(DEF.goods))}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function $(id){return document.getElementById(id)}
+function num(x){x=parseFloat(x);return isFinite(x)?x:0}
+function fmt(x,d){return x.toLocaleString("zh-TW",{minimumFractionDigits:d,maximumFractionDigits:d})}
+function tm(s){var p=(s||"0:0").split(":");return num(p[0])*60+num(p[1])}
+function ov(a,b,c,d){return Math.max(0,Math.min(b,d)-Math.max(a,c))}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+function lines(){var a=[{n:"底薪",v:S.base}];S.items.forEach(function(i){a.push({n:i.n||"未命名",v:i.v})});return a}
+function total(){return lines().reduce(function(s,l){return s+l.v},0)}
+function rate(v){return v/Math.max(1,S.days)/Math.max(.5,S.hrs)}
+
+function workedMin(){
+  var d=new Date();
+  var now=d.getHours()*60+d.getMinutes()+d.getSeconds()/60+d.getMilliseconds()/60000;
+  var st=tm(S.st),en=tm(S.en),ls=Math.max(tm(S.ls),st),le=Math.min(tm(S.le),en);
+  return Math.max(0,ov(0,now,st,en)-ov(0,now,ls,le));
+}
+function shiftMin(){
+  var st=tm(S.st),en=tm(S.en),ls=Math.max(tm(S.ls),st),le=Math.min(tm(S.le),en);
+  return Math.max(1,(en-st)-ov(ls,le,ls,le));
+}
+
+function renderRows(){
+  var L=lines(),T=total()||1,h="";
+  L.forEach(function(l,i){
+    h+='<div class="row"><div class="rt"><span class="rn">'+esc(l.n)+'</span><span class="rh">每小時 <b>'+fmt(rate(l.v),1)+'</b></span></div>'
+     +'<div class="rt rv"><span>每月 NT$ '+fmt(l.v,0)+'・佔 '+fmt(l.v/T*100,1)+'%</span><span>今天已累積 NT$ <span data-t="'+i+'">0.00</span></span></div>'
+     +'<div class="bar"><i style="width:'+Math.max(1,l.v/T*100)+'%"></i></div></div>';
+  });
+  h+='<div class="row total"><div class="rt"><span class="rn">合計</span><span class="rh">每小時 <b>'+fmt(rate(total()),1)+'</b></span></div>'
+   +'<div class="rt rv"><span>每月 NT$ '+fmt(total(),0)+'</span><span>今天已累積 NT$ <span data-t="sum">0.00</span></span></div></div>';
+  $("rows").innerHTML=h;
+  var r=rate(total());
+  $("rh").textContent=fmt(r,1);$("rm").textContent=fmt(r/60,2);$("rs").textContent=fmt(r/3600,3);
+  renderGoods();renderLeave();tick();
+}
+
+function tick(){
+  var w=workedMin()/60,L=lines(),sum=0;
+  L.forEach(function(l,i){
+    var e=rate(l.v)*w;sum+=e;
+    var el=document.querySelector('[data-t="'+i+'"]');if(el)el.textContent=fmt(e,2);
+  });
+  var es=document.querySelector('[data-t="sum"]');if(es)es.textContent=fmt(sum,2);
+  $("today").textContent=fmt(sum,2);
+  $("pctline").textContent="約佔月薪的 "+fmt(sum/(total()||1)*100,2)+"%";
+  updGoods(sum);
+  var dn=new Date(),dim=new Date(dn.getFullYear(),dn.getMonth()+1,0).getDate(),frac=Math.min(1,workedMin()/shiftMin()),cum=total()*(dn.getDate()-1+frac)/dim;
+  $("monthline").innerHTML="本月累計 <b>NT$ "+fmt(cum,2)+"</b><div class=\"rv\">第 "+dn.getDate()+" 天 / 共 "+dim+" 天・月底領到 NT$ "+fmt(total(),0)+"</div>";
+  var pct=Math.min(100,workedMin()/shiftMin()*100);
+  $("pg").style.width=pct+"%";
+  var d=new Date(),now=d.getHours()*60+d.getMinutes(),st=tm(S.st),en=tm(S.en);
+  $("state").textContent=now<st?"還沒上班，從上班時間開始累積":now>=en?"已下班，今天累積完成":"工作中，已完成今天的 "+fmt(pct,0)+"%";
+}
+
+function renderLeave(){
+  var t=$("lt").value,ratio=t==="c"?num($("lc").value)/100:num(t);
+  $("cw").style.display=t==="c"?"grid":"none";
+  var hrs=num($("lh").value),cut=rate(total())*hrs*ratio;
+  var T=total()||1;
+  $("leave").innerHTML="請 "+fmt(hrs,1)+" 小時，這個月少拿 <b>NT$ "+fmt(cut,0)+"</b>"
+   +'<div class="rv" style="margin-top:4px">約佔月薪的 '+fmt(cut/T*100,1)+"%</div>";
+}
+
+function renderItems(){
+  var h="";
+  S.items.forEach(function(it,i){
+    h+='<div class="item"><input data-k="n" data-i="'+i+'" value="'+esc(it.n)+'" aria-label="項目名稱">'
+     +'<input data-k="v" data-i="'+i+'" type="number" min="0" inputmode="numeric" value="'+it.v+'" aria-label="每月金額">'
+     +'<button class="del" type="button" data-d="'+i+'" aria-label="刪除此項">✕</button></div>';
+  });
+  $("items").innerHTML=h;
+}
+
+function gfmt(n){return n>=10?fmt(n,0):fmt(n,1)}
+function renderGoods(){
+  var r=rate(total()),h='';
+  S.goods.forEach(function(g,i){
+    var p=Math.max(0,g.p),u=esc(g.u||'個'),hrs=r>0?p/r:0;
+    h+='<div class="row"><div class="rt"><span class="rn">'+esc(g.n||'未命名')+'</span><span class="rv">NT$ '+fmt(p,0)+' / '+u+'</span></div>'
+     +'<div class="rt"><span class="rh">今天已賺到 <b data-g="'+i+'">0</b> '+u+'</span><span class="rv">要工作 '+gfmt(hrs)+' 小時才買得起 1 '+u+'</span></div>'
+     +'<div class="bar"><i data-gb="'+i+'" style="width:0"></i></div></div>';
+  });
+  if(!S.goods.length)h='<p class="note">還沒有物品，到下方的薪資設定新增一個吧。</p>';
+  $('goods-out').innerHTML=h;
+}
+function updGoods(sum){
+  S.goods.forEach(function(g,i){
+    var p=Math.max(0,g.p),c=p>0?sum/p:0;
+    var el=document.querySelector('[data-g="'+i+'"]');if(el)el.textContent=fmt(c,2);
+    var b=document.querySelector('[data-gb="'+i+'"]');if(b)b.style.width=((c-Math.floor(c))*100)+'%';
+  });
+}
+function renderGoodsEditor(){
+  var h='';
+  S.goods.forEach(function(g,i){
+    h+='<div class="item good"><input data-gk="n" data-gi="'+i+'" value="'+esc(g.n)+'" aria-label="物品名稱">'
+     +'<input data-gk="u" data-gi="'+i+'" value="'+esc(g.u)+'" aria-label="單位" placeholder="單位">'
+     +'<input data-gk="p" data-gi="'+i+'" type="number" min="0" inputmode="numeric" value="'+g.p+'" aria-label="價格">'
+     +'<button class="del" type="button" data-gd="'+i+'" aria-label="刪除此物品">✕</button></div>';
+  });
+  $('goods').innerHTML=h;
+}
+$('goods').addEventListener('input',function(e){
+  var k=e.target.getAttribute('data-gk'),i=e.target.getAttribute('data-gi');
+  if(k===null)return;
+  S.goods[i][k]=k==='p'?num(e.target.value):e.target.value;
+  save();renderGoods();tick();
+});
+$('goods').addEventListener('click',function(e){
+  var d=e.target.getAttribute('data-gd');
+  if(d===null)return;
+  S.goods.splice(d,1);save();renderGoodsEditor();renderGoods();tick();
+});
+$('addGood').addEventListener('click',function(){
+  S.goods.push({n:'新物品',u:'個',p:100});save();renderGoodsEditor();renderGoods();tick();
+});
+function fill(){
+  $("base").value=S.base;$("days").value=S.days;$("hrs").value=S.hrs;
+  $("st").value=S.st;$("en").value=S.en;$("ls").value=S.ls;$("le").value=S.le;
+}
+
+$("items").addEventListener("input",function(e){
+  var k=e.target.getAttribute("data-k"),i=e.target.getAttribute("data-i");
+  if(k===null)return;
+  S.items[i][k]=k==="v"?num(e.target.value):e.target.value;
+  save();renderRows();
+});
+$("items").addEventListener("click",function(e){
+  var d=e.target.getAttribute("data-d");
+  if(d===null)return;
+  S.items.splice(d,1);save();renderItems();renderRows();
+});
+$("addItem").addEventListener("click",function(){
+  S.items.push({n:"新項目",v:0});save();renderItems();renderRows();
+});
+[["base","base"],["days","days"],["hrs","hrs"]].forEach(function(p){
+  $(p[0]).addEventListener("input",function(){S[p[1]]=num($(p[0]).value);save();renderRows()});
+});
+["st","en","ls","le"].forEach(function(id){
+  $(id).addEventListener("input",function(){S[id]=$(id).value||S[id];save();renderRows()});
+});
+["lt","lh","lc"].forEach(function(id){$(id).addEventListener("input",renderLeave)});
+
+fill();renderItems();renderGoodsEditor();renderRows();
+setInterval(tick,250);
+})();
+</script>
+</body>
+</html>
