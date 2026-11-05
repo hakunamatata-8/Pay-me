@@ -108,6 +108,10 @@ summary{cursor:pointer;font-weight:700;font-size:1.05rem;padding:2px 0}
       <p style="margin:16px 0 6px;font-size:.9rem;font-weight:600">每月加給項目</p>
       <div id="items"></div>
       <button class="add" id="addItem" type="button">新增加給項目</button>
+      <p style="margin:20px 0 6px;font-size:.9rem;font-weight:600">每月扣除項目（勞保、健保等）</p>
+      <p class="note" style="margin-top:0">金額是示範值，請照你薪資單上實際的自付額填。</p>
+      <div id="deds"></div>
+      <button class="add" id="addDed" type="button">新增扣除項目</button>
       <p style="margin:20px 0 6px;font-size:.9rem;font-weight:600">換算用的物品（名稱、單位、價格）</p>
       <p class="note" style="margin-top:0">價格是示範值，請改成你實際看到的價格。</p>
       <div id="goods"></div>
@@ -122,6 +126,11 @@ summary{cursor:pointer;font-weight:700;font-size:1.05rem;padding:2px 0}
         <div><label for="le">午休結束</label><input id="le" type="time"></div>
       </div>
       <p class="note">預設用月薪除以 30、再除以 8 的算法。以上數字是示範值，請改成你自己的。</p>
+      <p id="sv" class="note"></p>
+      <p style="margin:20px 0 6px;font-size:.9rem;font-weight:600">備份與還原</p>
+      <p class="note" style="margin-top:0">換裝置或資料不見時用：按「產生備份碼」，把整段文字存起來；要還原時貼回來再按「還原」。備份碼裡有你的薪資數字，請自己保管。</p>
+      <textarea id="bk" rows="3" style="width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px" aria-label="備份碼"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="add" id="bkMake" type="button">產生備份碼</button><button class="add" id="bkLoad" type="button">還原</button></div>
     </div>
   </details>
 </section>
@@ -130,12 +139,13 @@ summary{cursor:pointer;font-weight:700;font-size:1.05rem;padding:2px 0}
 <script>
 (function(){
 var KEY="wage-breakdown-v1";
-var DEF={goods:[{n:"阿帝仙香水",u:"瓶",p:4500},{n:"提拉米蘇蛋糕",u:"塊",p:150},{n:"超商茶葉蛋",u:"顆",p:13}],base:35000,items:[{n:"證照加給",v:3000},{n:"風險加給",v:1000},{n:"年資加給",v:1000}],days:30,hrs:8,st:"09:00",en:"18:00",ls:"12:00",le:"13:00"};
+var DEF={deds:[{n:"勞保自付",v:900},{n:"健保自付",v:600}],goods:[{n:"阿帝仙香水",u:"瓶",p:4500},{n:"提拉米蘇蛋糕",u:"塊",p:150},{n:"超商茶葉蛋",u:"顆",p:13}],base:35000,items:[{n:"證照加給",v:3000},{n:"風險加給",v:1000},{n:"年資加給",v:1000}],days:30,hrs:8,st:"09:00",en:"18:00",ls:"12:00",le:"13:00"};
 var S;
 try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
 if(!S||typeof S.base!=="number"||!Array.isArray(S.items)){S=JSON.parse(JSON.stringify(DEF))}
 if(!Array.isArray(S.goods)){S.goods=JSON.parse(JSON.stringify(DEF.goods))}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+if(!Array.isArray(S.deds)){S.deds=JSON.parse(JSON.stringify(DEF.deds))}
+function save(){var ok=false;try{var j=JSON.stringify(S);localStorage.setItem(KEY,j);ok=localStorage.getItem(KEY)===j}catch(e){}var el=document.getElementById('sv');if(el)el.textContent=ok?'已自動儲存在這個瀏覽器':'⚠ 這個瀏覽器沒有儲存成功，請用下方的備份碼'}
 function $(id){return document.getElementById(id)}
 function num(x){x=parseFloat(x);return isFinite(x)?x:0}
 function fmt(x,d){return x.toLocaleString("zh-TW",{minimumFractionDigits:d,maximumFractionDigits:d})}
@@ -183,8 +193,8 @@ function tick(){
   $("today").textContent=fmt(sum,2);
   $("pctline").textContent="約佔月薪的 "+fmt(sum/(total()||1)*100,2)+"%";
   updGoods(sum);
-  var dn=new Date(),dim=new Date(dn.getFullYear(),dn.getMonth()+1,0).getDate(),frac=Math.min(1,workedMin()/shiftMin()),cum=total()*(dn.getDate()-1+frac)/dim;
-  $("monthline").innerHTML="本月累計 <b>NT$ "+fmt(cum,2)+"</b><div class=\"rv\">第 "+dn.getDate()+" 天 / 共 "+dim+" 天・月底領到 NT$ "+fmt(total(),0)+"</div>";
+  var dn=new Date(),dim=new Date(dn.getFullYear(),dn.getMonth()+1,0).getDate(),frac=Math.min(1,workedMin()/shiftMin()),net=Math.max(0,total()-dedTotal()),cum=net*(dn.getDate()-1+frac)/dim;
+  $("monthline").innerHTML="本月累計實領 <b>NT$ "+fmt(cum,2)+"</b><div class=\"rv\">第 "+dn.getDate()+" 天 / 共 "+dim+" 天・月底實領 NT$ "+fmt(net,0)+"（已扣勞健保等 "+fmt(dedTotal(),0)+"）</div>";
   var pct=Math.min(100,workedMin()/shiftMin()*100);
   $("pg").style.width=pct+"%";
   var d=new Date(),now=d.getHours()*60+d.getMinutes(),st=tm(S.st),en=tm(S.en);
@@ -210,6 +220,30 @@ function renderItems(){
   $("items").innerHTML=h;
 }
 
+function dedTotal(){return S.deds.reduce(function(s,d){return s+num(d.v)},0)}
+function renderDedsEditor(){
+  var h='';
+  S.deds.forEach(function(d,i){
+    h+='<div class="item"><input data-dk="n" data-di="'+i+'" value="'+esc(d.n)+'" aria-label="扣除項目名稱">'
+     +'<input data-dk="v" data-di="'+i+'" type="number" min="0" inputmode="numeric" value="'+d.v+'" aria-label="每月扣除金額">'
+     +'<button class="del" type="button" data-dd="'+i+'" aria-label="刪除此項">✕</button></div>';
+  });
+  $('deds').innerHTML=h;
+}
+$('deds').addEventListener('input',function(e){
+  var k=e.target.getAttribute('data-dk'),i=e.target.getAttribute('data-di');
+  if(k===null)return;
+  S.deds[i][k]=k==='v'?num(e.target.value):e.target.value;
+  save();tick();
+});
+$('deds').addEventListener('click',function(e){
+  var d=e.target.getAttribute('data-dd');
+  if(d===null)return;
+  S.deds.splice(d,1);save();renderDedsEditor();tick();
+});
+$('addDed').addEventListener('click',function(){
+  S.deds.push({n:'新項目',v:0});save();renderDedsEditor();tick();
+});
 function gfmt(n){return n>=10?fmt(n,0):fmt(n,1)}
 function renderGoods(){
   var r=rate(total()),h='';
@@ -253,6 +287,17 @@ $('goods').addEventListener('click',function(e){
 $('addGood').addEventListener('click',function(){
   S.goods.push({n:'新物品',u:'個',p:100});save();renderGoodsEditor();renderGoods();tick();
 });
+$('bkMake').addEventListener('click',function(){var t=$('bk');t.value=JSON.stringify(S);t.focus();t.select();try{navigator.clipboard.writeText(t.value)}catch(e){}});
+$('bkLoad').addEventListener('click',function(){
+  try{
+    var o=JSON.parse($('bk').value);
+    if(!o||typeof o.base!=='number'||!Array.isArray(o.items))throw 0;
+    S=o;
+    if(!Array.isArray(S.goods))S.goods=JSON.parse(JSON.stringify(DEF.goods));
+    if(!Array.isArray(S.deds))S.deds=JSON.parse(JSON.stringify(DEF.deds));
+    save();fill();renderItems();renderDedsEditor();renderGoodsEditor();renderRows();$('bk').value='';
+  }catch(e){$('bk').value='';$('bk').placeholder='備份碼格式不正確，請重新貼上'}
+});
 function fill(){
   $("base").value=S.base;$("days").value=S.days;$("hrs").value=S.hrs;
   $("st").value=S.st;$("en").value=S.en;$("ls").value=S.ls;$("le").value=S.le;
@@ -280,7 +325,7 @@ $("addItem").addEventListener("click",function(){
 });
 ["lt","lh","lc"].forEach(function(id){$(id).addEventListener("input",renderLeave)});
 
-fill();renderItems();renderGoodsEditor();renderRows();
+fill();renderItems();renderDedsEditor();renderGoodsEditor();renderRows();save();
 setInterval(tick,250);
 })();
 </script>
