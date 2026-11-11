@@ -81,6 +81,15 @@ summary{cursor:pointer;font-weight:700;font-size:1.05rem;padding:2px 0}
 </section>
 
 <section>
+  <h2>剁手告解室</h2>
+  <div class="grid">
+    <div><label for="wn">想買什麼</label><input id="wn" placeholder="例如：新香水"></div>
+    <div><label for="wp">價格（NT$）</label><input id="wp" type="number" min="0" inputmode="numeric"></div>
+  </div>
+  <div class="res" id="want">輸入價格，看看要賣掉多少時間。</div>
+</section>
+
+<section>
   <h2>請假的代價</h2>
   <div class="grid">
     <div><label for="lt">假別</label>
@@ -180,7 +189,7 @@ function renderRows(){
   $("rows").innerHTML=h;
   var r=rate(total());
   $("rh").textContent=fmt(r,1);$("rm").textContent=fmt(r/60,2);$("rs").textContent=fmt(r/3600,3);
-  renderGoods();renderLeave();tick();
+  renderGoods();renderLeave();renderWant();tick();
 }
 
 function tick(){
@@ -244,6 +253,22 @@ $('deds').addEventListener('click',function(e){
 $('addDed').addEventListener('click',function(){
   S.deds.push({n:'新項目',v:0});save();renderDedsEditor();tick();
 });
+function renderWant(){
+  var p=num($('wp').value),n=$('wn').value.trim()||'這個東西',r=rate(total()),net=Math.max(0,total()-dedTotal());
+  if(p<=0||r<=0){$('want').textContent='輸入價格，看看要賣掉多少時間。';return}
+  var hrs=p/r,days=hrs/Math.max(.5,S.hrs);
+  var t=hrs<1?fmt(hrs*60,0)+' 分鐘':fmt(hrs,1)+' 小時';
+  var h='買「'+esc(n)+'」要賣掉 <b>'+t+'</b> 的上班時間';
+  if(hrs>=S.hrs)h+='（約 '+fmt(days,1)+' 個工作天）';
+  h+='<div class="rv" style="margin-top:6px">佔月薪 '+fmt(p/(total()||1)*100,1)+'%・佔月實領 '+(net>0?fmt(p/net*100,1)+'%':'—')+'</div>';
+  var g=S.goods.filter(function(x){return x.p>0}).map(function(x){return '≈ '+gfmt(p/x.p)+' '+esc(x.u||'個')+esc(x.n)});
+  if(g.length)h+='<div class="rv" style="margin-top:4px">'+g.join('・')+'</div>';
+  var v=hrs<1?'一小時內就賺回來的錢，買得下去。':hrs<4?'要用半天以內的班換，想一下再買。':hrs<8?'要賣掉大半天的班，真的想要再買。':'要賣掉一整天以上的班，先放購物車過一晚。';
+  h+='<div style="margin-top:8px">'+v+'</div>';
+  $('want').innerHTML=h;
+}
+$('wn').addEventListener('input',renderWant);
+$('wp').addEventListener('input',renderWant);
 function gfmt(n){return n>=10?fmt(n,0):fmt(n,1)}
 function renderGoods(){
   var r=rate(total()),h='';
